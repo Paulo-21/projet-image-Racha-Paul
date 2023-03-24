@@ -4,7 +4,7 @@ import numpy as np
 import imutils
 
 
-img = cv2.imread('image1.jpg')
+img = cv2.imread('ImagesProjetL3/image1.jpg')
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
 # Appliquer le filtre de Sobel
