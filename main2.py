@@ -2,8 +2,9 @@ import cv2
 from matplotlib import pyplot as plt
 import numpy as np
 import imutils
+from scipy.stats import mode
 
-img = cv2.imread('ImagesProjetL3/30.jpeg')
+img = cv2.imread('ImagesProjetL3/28.jpg')
 kernel = np.ones((5,5), np.uint8)
 
 
@@ -35,14 +36,10 @@ contours, hierarchy = cv2.findContours(binarizedImage, cv2.RETR_TREE, cv2.CHAIN_
 
 cv2.drawContours(img, contours, -1, (0,255,0), 3)
 """
-
 # Réduire la taille de la fenêtre d'affichage
 cv2.namedWindow('Image', cv2.WINDOW_NORMAL)
 cv2.resizeWindow('Image', 600, 700)
-
-
 cv2.imshow('Image',img)
-
 cv2.waitKey(0)
 cv2.destroyAllWindows()
 """
@@ -134,17 +131,56 @@ def segmentation_et_traitement_image(chemin_image: str):
 
 #test fonction 'segmentation_et_traitement_image'
 
-list_image = segmentation_et_traitement_image('ImagesProjetL3/16.jpg')
+list_image = segmentation_et_traitement_image('ImagesProjetL3/28.jpg')
 
-img_original = cv2.imread('ImagesProjetL3/16.jpg')
+img_original = cv2.imread('ImagesProjetL3/28.jpg')
+'''
 cv2.namedWindow('Image Original', cv2.WINDOW_NORMAL)
 cv2.resizeWindow('Image Original', 1000, 700)
 cv2.namedWindow('Image segmentee', cv2.WINDOW_NORMAL)
 cv2.resizeWindow('Image segmentee', 1000, 700)
 cv2.namedWindow('Image traite', cv2.WINDOW_NORMAL)
 cv2.resizeWindow('Image traite', 1000, 700)
+'''
+#**************************************************************************************************
+#****************************************************************************************************
+# Convertir en niveaux de gris
+gray = cv2.cvtColor(list_image[0], cv2.COLOR_BGR2GRAY)
+
+#contours
+edges = cv2.Canny(gray, 50, 150, apertureSize=3)
+
+
+#Detection de lignes en utilisant la transformation de hough 
+lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=10, maxLineGap=250)
+
+#calculer l'angle de chaque ligne 
+angles = []
+for line in lines:
+    x1, y1, x2, y2 = line[0]
+    angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
+    angles.append(angle)
+
+#Calculer la moyenne de l'angle 
+median_angle = np.median(angles)
+
+# vérifier l'angle
+if median_angle > 45:
+    median_angle -= 180
+elif median_angle < -45:
+    median_angle += 180
+
+# Corriger l'inclinaison 
+(h, w) = list_image[0].shape[:2]
+center = (w // 2, h // 2)
+M = cv2.getRotationMatrix2D(center, median_angle, 1.0)
+rotated = cv2.warpAffine(list_image[0], M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+
+
+
+cv2.imshow('Texte redressé',rotated)
 cv2.imshow('Image segmentee',list_image[0])
-cv2.imshow('Image traite',list_image[1])
-cv2.imshow('Image Original',img_original)
+#cv2.imshow('Image traite',list_image[1])
+#cv2.imshow('Image Original',img_original)
 cv2.waitKey(0)
 cv2.destroyAllWindows()
