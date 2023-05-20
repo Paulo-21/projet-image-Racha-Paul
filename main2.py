@@ -3,6 +3,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 import imutils
 from scipy.stats import mode
+from itertools import groupby
+from operator import itemgetter
+
 
 img = cv2.imread('ImagesProjetL3/28.jpg')
 kernel = np.ones((5,5), np.uint8)
@@ -131,17 +134,18 @@ def segmentation_et_traitement_image(chemin_image: str):
 
 #test fonction 'segmentation_et_traitement_image'
 
-list_image = segmentation_et_traitement_image('ImagesProjetL3/28.jpg')
+list_image = segmentation_et_traitement_image('ImagesProjetL3/image1.jpg')
 
-img_original = cv2.imread('ImagesProjetL3/28.jpg')
-'''
-cv2.namedWindow('Image Original', cv2.WINDOW_NORMAL)
-cv2.resizeWindow('Image Original', 1000, 700)
-cv2.namedWindow('Image segmentee', cv2.WINDOW_NORMAL)
-cv2.resizeWindow('Image segmentee', 1000, 700)
-cv2.namedWindow('Image traite', cv2.WINDOW_NORMAL)
-cv2.resizeWindow('Image traite', 1000, 700)
-'''
+img_original = cv2.imread('ImagesProjetL3/image1.jpg')
+
+#cv2.namedWindow('Texte redressé', cv2.WINDOW_NORMAL)
+#cv2.resizeWindow('Texte redressé', 1000, 700)
+#cv2.namedWindow('Image segmentee', cv2.WINDOW_NORMAL)
+#cv2.resizeWindow('Image segmentee', 1000, 700)
+#cv2.namedWindow('Image traite', cv2.WINDOW_NORMAL)
+#cv2.resizeWindow('Image traite', 1000, 700)
+#cv2.namedWindow('Lines', cv2.WINDOW_NORMAL)
+#cv2.resizeWindow('Lines', 1000, 700)
 #**************************************************************************************************
 #****************************************************************************************************
 # Convertir en niveaux de gris
@@ -176,10 +180,65 @@ center = (w // 2, h // 2)
 M = cv2.getRotationMatrix2D(center, median_angle, 1.0)
 rotated = cv2.warpAffine(list_image[0], M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
 
+#*******************************************************************************
+#Extraction de lignes 
+#*******************************************************************************
+grayRotated = cv2.cvtColor(rotated, cv2.COLOR_BGR2GRAY)
 
 
-cv2.imshow('Texte redressé',rotated)
-cv2.imshow('Image segmentee',list_image[0])
+img_inverted = cv2.bitwise_not(grayRotated)
+
+
+
+_, binarizedRotated = cv2.threshold(img_inverted, 125, 255, cv2.THRESH_BINARY)
+
+
+kernel = np.ones((4,4),np.uint8)
+dilated = cv2.erode(binarizedRotated, kernel, iterations = 1)
+
+
+#l'histogramme 
+hist = cv2.reduce(dilated, 1, cv2.REDUCE_SUM, dtype=cv2.CV_32S)
+
+
+#detecter les ignes
+lines = []
+threshold = 760000  # seuil
+for i in range(hist.shape[0]):
+    if hist[i] < threshold:
+        lines.append(i)
+
+# Segmentation des lignes
+height, width = dilated.shape
+line_image = []
+for _, rows in groupby(enumerate(lines), lambda x: x[1] - x[0]):
+    rows = list(rows)
+    line_img = dilated[rows[0][1]:rows[-1][1], 0:width]
+    #vérifier que l'image n'est pas vide 
+    if line_img.size > 0:  
+        line_image.append(line_img)
+
+
+#affichage de chaque ligne 
+for i, line in enumerate(line_image):
+    line_resized = cv2.resize(line, (1000, 100))  # resize to width=500, height=100
+    cv2.imshow(f'Line {i+1}', line_resized)
+    cv2.waitKey(0)
+
+#cv2.imshow('line 1',line_image[0])
+#*******************************************************************************
+#*******************************************************************************
+#Extraction de mots 
+#*******************************************************************************
+#*******************************************************************************
+
+
+
+
+
+
+#cv2.imshow('Texte redresse',dilated)
+#cv2.imshow('Image segmentee',list_image[0])
 #cv2.imshow('Image traite',list_image[1])
 #cv2.imshow('Image Original',img_original)
 cv2.waitKey(0)
