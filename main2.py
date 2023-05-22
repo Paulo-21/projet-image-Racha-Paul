@@ -2,7 +2,6 @@ import cv2
 from matplotlib import pyplot as plt
 import numpy as np
 import imutils
-from scipy.stats import mode
 from itertools import groupby
 from operator import itemgetter
 
