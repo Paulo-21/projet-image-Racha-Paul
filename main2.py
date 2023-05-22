@@ -1,10 +1,8 @@
 import cv2
 from matplotlib import pyplot as plt
 import numpy as np
-import imutils
-from scipy.stats import mode
 from itertools import groupby
-from operator import itemgetter
+
 
 
 img = cv2.imread('ImagesProjetL3/28.jpg')
@@ -218,20 +216,13 @@ for _, rows in groupby(enumerate(lines), lambda x: x[1] - x[0]):
     if line_img.size > 0:  
         line_image.append(line_img)
 
-
+'''
 #affichage de chaque ligne 
 for i, line in enumerate(line_image):
     line_resized = cv2.resize(line, (1000, 100))  # resize to width=500, height=100
     cv2.imshow(f'Line {i+1}', line_resized)
     cv2.waitKey(0)
-
-#cv2.imshow('line 1',line_image[0])
-#*******************************************************************************
-#*******************************************************************************
-#Extraction de mots 
-#*******************************************************************************
-#*******************************************************************************
-
+'''
 
 
 
