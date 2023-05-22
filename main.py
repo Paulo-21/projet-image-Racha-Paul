@@ -4,7 +4,9 @@ import numpy as np
 from itertools import groupby
 
 
-img = cv2.imread('ImagesProjetL3/28.jpg')
+path_img_org = 'ImagesProjetL3/28.jpg'
+
+img = cv2.imread(path_img_org)
 kernel = np.ones((5,5), np.uint8)
 
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -156,9 +158,9 @@ def segmentation_et_traitement_image(chemin_image: str):
 
 #test fonction 'segmentation_et_traitement_image'
 
-list_image = segmentation_et_traitement_image('ImagesProjetL3/65.jpg')
+list_image = segmentation_et_traitement_image(path_img_org)
 
-img_original = cv2.imread('ImagesProjetL3/65.jpg')
+img_original = cv2.imread(path_img_org)
 
 cv2.namedWindow('Texte redresse', cv2.WINDOW_NORMAL)
 cv2.resizeWindow('Texte redresse', 900, 700)
