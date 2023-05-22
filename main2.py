@@ -7,6 +7,7 @@ from itertools import groupby
 pytesseract.pytesseract.tesseract_cmd = r"chemin vers votre tesseract.exe"
 
 
+
 img = cv2.imread('ImagesProjetL3/28.jpg')
 kernel = np.ones((5,5), np.uint8)
 
