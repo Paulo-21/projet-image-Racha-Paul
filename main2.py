@@ -1,10 +1,10 @@
 import cv2
 from matplotlib import pyplot as plt
 import numpy as np
+import pytesseract
 import imutils
-from scipy.stats import mode
 from itertools import groupby
-from operator import itemgetter
+pytesseract.pytesseract.tesseract_cmd = r"chemin vers votre tesseract.exe"
 
 
 img = cv2.imread('ImagesProjetL3/28.jpg')
@@ -110,6 +110,13 @@ def segmentation_et_traitement_image(chemin_image: str):
             max_area = area
             best_cnt = cnt
 
+    #cette partie du code sert à conserver les contours du tableau
+    liste_des_points_des_contours_du_tableau = []
+    for point in best_cnt:
+        x, y = point[0]
+        liste = [x, y]
+        liste_des_points_des_contours_du_tableau.append(liste)
+
     # L'image ayant été modifié par les traitements précédents, on recharge l'image originale
     img = cv2.imread(chemin_image)
 
@@ -124,19 +131,19 @@ def segmentation_et_traitement_image(chemin_image: str):
     gray_final = cv2.cvtColor(result, cv2.COLOR_BGR2GRAY)
 
     # binarisation
-    ret, thresh_final = cv2.threshold(gray_final, 145, 255, cv2.THRESH_BINARY)
+    ret, thresh_final = cv2.threshold(gray_final, 88, 255, cv2.THRESH_BINARY) #De base 125 #ancien 145
 
     segmentation_tableau_image = result
 
     traitement_final_de_l_image = thresh_final
 
-    return [segmentation_tableau_image, traitement_final_de_l_image]
+    return [segmentation_tableau_image, traitement_final_de_l_image, liste_des_points_des_contours_du_tableau]
 
 #test fonction 'segmentation_et_traitement_image'
 
-list_image = segmentation_et_traitement_image('ImagesProjetL3/image1.jpg')
+list_image = segmentation_et_traitement_image('ImagesProjetL3/testI4.jpg')
 
-img_original = cv2.imread('ImagesProjetL3/image1.jpg')
+img_original = cv2.imread('ImagesProjetL3/testI4.jpg')
 
 #cv2.namedWindow('Texte redressé', cv2.WINDOW_NORMAL)
 #cv2.resizeWindow('Texte redressé', 1000, 700)
@@ -155,17 +162,17 @@ gray = cv2.cvtColor(list_image[0], cv2.COLOR_BGR2GRAY)
 edges = cv2.Canny(gray, 50, 150, apertureSize=3)
 
 
-#Detection de lignes en utilisant la transformation de hough 
+#Detection de lignes en utilisant la transformation de hough
 lines = cv2.HoughLinesP(edges, 1, np.pi/180, 100, minLineLength=10, maxLineGap=250)
 
-#calculer l'angle de chaque ligne 
+#calculer l'angle de chaque ligne
 angles = []
 for line in lines:
     x1, y1, x2, y2 = line[0]
     angle = np.degrees(np.arctan2(y2 - y1, x2 - x1))
     angles.append(angle)
 
-#Calculer la moyenne de l'angle 
+#Calculer la moyenne de l'angle
 median_angle = np.median(angles)
 
 # vérifier l'angle
@@ -174,14 +181,14 @@ if median_angle > 45:
 elif median_angle < -45:
     median_angle += 180
 
-# Corriger l'inclinaison 
+# Corriger l'inclinaison
 (h, w) = list_image[0].shape[:2]
 center = (w // 2, h // 2)
 M = cv2.getRotationMatrix2D(center, median_angle, 1.0)
 rotated = cv2.warpAffine(list_image[0], M, (w, h), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
 
 #*******************************************************************************
-#Extraction de lignes 
+#Extraction de lignes
 #*******************************************************************************
 grayRotated = cv2.cvtColor(rotated, cv2.COLOR_BGR2GRAY)
 
@@ -197,7 +204,7 @@ kernel = np.ones((4,4),np.uint8)
 dilated = cv2.erode(binarizedRotated, kernel, iterations = 1)
 
 
-#l'histogramme 
+#l'histogramme
 hist = cv2.reduce(dilated, 1, cv2.REDUCE_SUM, dtype=cv2.CV_32S)
 
 
@@ -214,32 +221,94 @@ line_image = []
 for _, rows in groupby(enumerate(lines), lambda x: x[1] - x[0]):
     rows = list(rows)
     line_img = dilated[rows[0][1]:rows[-1][1], 0:width]
-    #vérifier que l'image n'est pas vide 
-    if line_img.size > 0:  
+    #vérifier que l'image n'est pas vide
+    if line_img.size > 0:
         line_image.append(line_img)
 
-
+'''
 #affichage de chaque ligne 
 for i, line in enumerate(line_image):
     line_resized = cv2.resize(line, (1000, 100))  # resize to width=500, height=100
     cv2.imshow(f'Line {i+1}', line_resized)
     cv2.waitKey(0)
+'''
+def supression_pixel_isole(image_p,pixel_blanc_isole : bool = True):
 
-#cv2.imshow('line 1',line_image[0])
-#*******************************************************************************
-#*******************************************************************************
-#Extraction de mots 
-#*******************************************************************************
-#*******************************************************************************
+    # Créer un noyau structurant pour l'érosion et la dilatation
+    kernel = np.ones((3, 3), np.uint8)
+
+    # Érosion pour éliminer les petits pixels blancs isolés
+    eroded = cv2.erode(image_p, kernel, iterations=1)
+
+    # Dilatation pour récupérer la forme d'origine de l'objet
+    result = cv2.dilate(eroded, kernel, iterations=1)
+
+    return result
+
+def eliminer_les_surcontours_du_tableau(image,liste_des_pixels_de_contours):
+
+    for point in liste_des_pixels_de_contours:
+        x = point[0]
+        y = point[1]
+
+        get_pixels_autour(image,x,y,25)
+
+    return  image
+
+def get_pixels_autour(image, x, y, rayon):
+    pixels_autour = []
+
+    # Obtenir les dimensions de l'image
+    hauteur, largeur = image.shape[:2]
+
+    # Parcourir les pixels autour du pixel donné dans le rayon spécifié
+    for i in range(-rayon, rayon + 1):
+        for j in range(-rayon, rayon + 1):
+            pixel_x = x + i
+            pixel_y = y + j
+
+            # Vérifier si les coordonnées du pixel sont valides
+            if pixel_x >= 0 and pixel_x < largeur and pixel_y >= 0 and pixel_y < hauteur:
+                #print("pixel_x, "+str(pixel_x)+" pixel_y --> "+str(pixel_y))
+                image[pixel_y, pixel_x] = 0
+
+image_traitement_un_un = list_image[1].copy()
+image_traitement_un= eliminer_les_surcontours_du_tableau(image_traitement_un_un, list_image[2])
+image_traitement_un_deux = image_traitement_un.copy()
+image_traitement_deux = supression_pixel_isole(image_traitement_un_deux)
 
 
 
+cv2.namedWindow('Texte redresse', cv2.WINDOW_NORMAL)
+cv2.resizeWindow('Texte redresse', 1000, 700)
+cv2.namedWindow('Image segmentee', cv2.WINDOW_NORMAL)
+cv2.resizeWindow('Image segmentee', 1000, 700)
+cv2.namedWindow('Image Original', cv2.WINDOW_NORMAL)
+cv2.resizeWindow('Image Original', 1000, 700)
+cv2.namedWindow('Image traite', cv2.WINDOW_NORMAL)
+cv2.resizeWindow('Image traite', 1000, 700)
+cv2.namedWindow('Image traite apres t1', cv2.WINDOW_NORMAL)
+cv2.resizeWindow('Image traite apres t1', 1000, 700)
+cv2.namedWindow('Image traite apres t2', cv2.WINDOW_NORMAL)
+cv2.resizeWindow('Image traite apres t2', 1000, 700)
 
+cv2.imshow('Texte redresse',dilated)
+cv2.imshow('Image segmentee',list_image[0])
+cv2.imshow('Image traite',list_image[1])
+cv2.imshow('Image Original',img_original)
+cv2.imshow('Image traite apres t1',image_traitement_un)
+cv2.imshow('Image traite apres t2',image_traitement_deux)
+cv2.waitKey(0)
+cv2.destroyAllWindows()
 
+text = pytesseract.image_to_string(image_traitement_deux, lang='fra', config='--psm 11') #
 
-#cv2.imshow('Texte redresse',dilated)
-#cv2.imshow('Image segmentee',list_image[0])
-#cv2.imshow('Image traite',list_image[1])
-#cv2.imshow('Image Original',img_original)
+print(text)
+lines = text.split('\n')
+
+for line in lines:
+    cells = line.split('\t')
+    print(cells)
+
 cv2.waitKey(0)
 cv2.destroyAllWindows()
